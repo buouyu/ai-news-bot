@@ -2,8 +2,9 @@
 
 import logging
 import os
+import base64
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Any
 import httpx
 
 from .base import BaseScraper
@@ -105,7 +106,7 @@ class GitHubScraper(BaseScraper):
                 ]:
                     continue
 
-                item = self._parse_event(event, username)
+                item = await self._parse_event(event, username)
                 if item:
                     items.append(item)
 
@@ -114,7 +115,7 @@ class GitHubScraper(BaseScraper):
 
         return items
 
-    def _parse_event(self, event: dict, username: str) -> Optional[ContentItem]:
+    async def _parse_event(self, event: dict, username: str) -> Optional[ContentItem]:
         """Parse GitHub event into ContentItem.
 
         Args:
@@ -130,12 +131,15 @@ class GitHubScraper(BaseScraper):
 
         repo_name = event["repo"]["name"]
         repo_url = f"https://github.com/{repo_name}"
+        repo_context = ""
 
         # Generate title and content based on event type
         if event_type == "PushEvent":
             commits = event["payload"].get("commits", [])
             title = f"{username} pushed {len(commits)} commit(s) to {repo_name}"
             content = "\n".join([c.get("message", "") for c in commits[:3]])
+            if not content:
+                content = await self._fetch_recent_commit_messages(repo_name)
         elif event_type == "CreateEvent":
             ref_type = event["payload"].get("ref_type", "repository")
             title = f"{username} created {ref_type} in {repo_name}"
@@ -154,6 +158,10 @@ class GitHubScraper(BaseScraper):
         else:
             return None
 
+        if not content:
+            repo_context = await self._fetch_repo_context(repo_name)
+            content = repo_context
+
         return ContentItem(
             id=self._generate_id("github", "event", event_id),
             source_type=SourceType.GITHUB,
@@ -165,6 +173,7 @@ class GitHubScraper(BaseScraper):
             metadata={
                 "event_type": event_type,
                 "repo": repo_name,
+                "repo_context_fetched": bool(repo_context),
             }
         )
 
@@ -200,18 +209,25 @@ class GitHubScraper(BaseScraper):
                 if published_at < since:
                     continue
 
+                content = release.get("body", "")
+                repo_context = ""
+                if not content:
+                    repo_context = await self._fetch_repo_context(f"{owner}/{repo}")
+                    content = repo_context
+
                 item = ContentItem(
                     id=self._generate_id("github", "release", str(release["id"])),
                     source_type=SourceType.GITHUB,
                     title=f"{owner}/{repo} released {release['tag_name']}",
                     url=release["html_url"],
-                    content=release.get("body", ""),
+                    content=content,
                     author=release["author"]["login"],
                     published_at=published_at,
                     metadata={
                         "repo": f"{owner}/{repo}",
                         "tag": release["tag_name"],
                         "prerelease": release.get("prerelease", False),
+                        "repo_context_fetched": bool(repo_context),
                     }
                 )
                 items.append(item)
@@ -220,3 +236,90 @@ class GitHubScraper(BaseScraper):
             logger.warning("Error fetching releases for %s/%s: %s", owner, repo, e)
 
         return items
+
+    async def _fetch_recent_commit_messages(self, repo_name: str, limit: int = 3) -> str:
+        url = f"{self.base_url}/repos/{repo_name}/commits"
+        try:
+            response = await self.client.get(
+                url,
+                params={"per_page": limit},
+                headers=self._get_headers(),
+                follow_redirects=True,
+            )
+            response.raise_for_status()
+            commits = response.json()
+        except httpx.HTTPError as e:
+            logger.warning("Error fetching commits for %s: %s", repo_name, e)
+            return ""
+
+        messages = []
+        for commit in commits[:limit]:
+            message = (
+                commit.get("commit", {})
+                .get("message", "")
+                .strip()
+            )
+            if message:
+                messages.append(message)
+        return "\n".join(messages)
+
+    async def _fetch_repo_context(self, repo_name: str) -> str:
+        repo = await self._fetch_repo_metadata(repo_name)
+        readme = await self._fetch_repo_readme(repo_name)
+
+        parts = []
+        if repo:
+            description = repo.get("description") or ""
+            language = repo.get("language") or "unknown"
+            stars = repo.get("stargazers_count")
+            topics = repo.get("topics") or []
+            parts.append(f"Repository: {repo_name}")
+            if description:
+                parts.append(f"Description: {description}")
+            parts.append(f"Language: {language}")
+            if stars is not None:
+                parts.append(f"Stars: {stars}")
+            if topics:
+                parts.append(f"Topics: {', '.join(topics[:8])}")
+        if readme:
+            parts.append("")
+            parts.append("README excerpt:")
+            parts.append(readme[:2000])
+        return "\n".join(parts).strip()
+
+    async def _fetch_repo_metadata(self, repo_name: str) -> dict[str, Any]:
+        url = f"{self.base_url}/repos/{repo_name}"
+        try:
+            response = await self.client.get(
+                url,
+                headers={**self._get_headers(), "Accept": "application/vnd.github+json"},
+                follow_redirects=True,
+            )
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.warning("Error fetching repo metadata for %s: %s", repo_name, e)
+            return {}
+
+    async def _fetch_repo_readme(self, repo_name: str) -> str:
+        url = f"{self.base_url}/repos/{repo_name}/readme"
+        try:
+            response = await self.client.get(
+                url,
+                headers=self._get_headers(),
+                follow_redirects=True,
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except httpx.HTTPError as e:
+            logger.warning("Error fetching README for %s: %s", repo_name, e)
+            return ""
+
+        content = payload.get("content") or ""
+        if not content:
+            return ""
+        try:
+            decoded = base64.b64decode(content).decode("utf-8", errors="replace")
+        except Exception:
+            return ""
+        return decoded.strip()

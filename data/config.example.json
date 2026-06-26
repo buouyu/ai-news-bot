@@ -24,14 +24,27 @@
   "sources": {
     "github": [
       {
-        "type": "user_events",
-        "username": "torvalds",
+        "type": "repo_releases",
+        "owner": "astral-sh",
+        "repo": "uv",
         "enabled": true
       },
       {
         "type": "repo_releases",
-        "owner": "astral-sh",
-        "repo": "uv",
+        "owner": "microsoft",
+        "repo": "playwright",
+        "enabled": true
+      },
+      {
+        "type": "repo_releases",
+        "owner": "vercel",
+        "repo": "next.js",
+        "enabled": true
+      },
+      {
+        "type": "repo_releases",
+        "owner": "vitejs",
+        "repo": "vite",
         "enabled": true
       }
     ],
@@ -107,6 +120,22 @@
       "keywords": [],
       "min_stars": 10,
       "max_items": 30
+    },
+    "ata": {
+      "enabled": false,
+      "base_url": "https://ata.atatech.org",
+      "hot_path": "/api/v1/recommend/dayHotArticle",
+      "cookie_source": "applescript",
+      "chrome_domain": "ata.atatech.org",
+      "chrome_cookie_file": null,
+      "chrome_user_data_dir": "~/Library/Application Support/Google/Chrome",
+      "chrome_profile_directory": "Profile 1",
+      "headless": false,
+      "cookie_env": "ATA_COOKIE",
+      "xsrf_token_env": "ATA_XSRF_TOKEN",
+      "fetch_limit": 5,
+      "fetch_detail": true,
+      "category": "ata-hot"
     }
   },
   "filtering": {
@@ -158,5 +187,15 @@
       }
     },
     "headers": ""
+  },
+  "dingtalk": {
+    "enabled": false,
+    "app_key_env": "DINGTALK_APP_KEY",
+    "app_secret_env": "DINGTALK_APP_SECRET",
+    "robot_code_env": "DINGTALK_ROBOT_CODE",
+    "open_conversation_id_env": "DINGTALK_OPEN_CONVERSATION_ID",
+    "msg_key": "sampleMarkdown",
+    "message_title": "Horizon 每日速递",
+    "languages": ["zh"]
   }
 }

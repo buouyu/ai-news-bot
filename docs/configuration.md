@@ -204,14 +204,15 @@ All sources are configured under the top-level `sources` key in `config.json`.
   "sources": {
     "github": [
       {
-        "type": "user_events",
-        "username": "gvanrossum",
+        "type": "repo_releases",
+        "owner": "astral-sh",
+        "repo": "uv",
         "enabled": true
       },
       {
         "type": "repo_releases",
-        "owner": "python",
-        "repo": "cpython",
+        "owner": "microsoft",
+        "repo": "playwright",
         "enabled": true
       }
     ]

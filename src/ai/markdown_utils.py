@@ -93,6 +93,26 @@ def _convert_details_to_markdown(value: str) -> str:
     return _DETAILS_RE.sub(_replace, value)
 
 
+def extract_summary_toc(markdown: str) -> str:
+    """Extract the numbered table-of-contents block from a daily summary.
+
+    Daily summaries place the TOC between the first and second ``---`` dividers.
+    """
+    parts = re.split(r"^---\s*$", markdown.strip(), maxsplit=2, flags=re.MULTILINE)
+    if len(parts) < 2:
+        return ""
+    return parts[1].strip()
+
+
+def extract_summary_title(markdown: str) -> str:
+    """Return the first H1 heading from a daily summary, without the leading ``#``."""
+    for line in markdown.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("# "):
+            return stripped[2:].strip()
+    return ""
+
+
 def clean_app_summary_markdown(value: str) -> str:
     """Flatten app-generated HTML snippets embedded in summary Markdown.
 

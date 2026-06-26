@@ -18,8 +18,11 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "ddgs>=7.0.0",
     "beautifulsoup4>=4.12.0",
+    "browser-cookie3>=0.20.1",
     "markdown>=3.10.2",
     "mcp>=1.0.0",
+    "playwright>=1.40.0",
+    "truststore>=0.10.4",
 ]
 
 [project.optional-dependencies]

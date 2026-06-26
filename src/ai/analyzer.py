@@ -41,6 +41,22 @@ class ContentAnalyzer:
         concurrency = getattr(config, "analysis_concurrency", 1)
         return max(concurrency, 1)
 
+    def _get_language_instruction(self) -> str:
+        """Return output-language guidance for fields generated during scoring."""
+        config = getattr(self.client, "config", None)
+        languages = getattr(config, "languages", None) or ["en"]
+        if languages == ["zh"]:
+            return (
+                "\nLanguage requirement: Write reason, summary, and tags in Simplified Chinese. "
+                "Keep only widely-used technical terms, acronyms, product names, and proper nouns in English."
+            )
+        if languages and languages[0] == "zh":
+            return (
+                "\nLanguage requirement: Prefer Simplified Chinese for reason, summary, and tags. "
+                "Keep widely-used technical terms, acronyms, product names, and proper nouns in English."
+            )
+        return ""
+
     async def analyze_batch(self, items: List[ContentItem]) -> List[ContentItem]:
         throttle_sec = self._get_throttle_sec()
         concurrency = self._get_concurrency()
@@ -136,7 +152,8 @@ class ContentAnalyzer:
             author=item.author or "Unknown",
             url=str(item.url),
             content_section=content_section,
-            discussion_section=discussion_section
+            discussion_section=discussion_section,
+            language_instruction=self._get_language_instruction(),
         )
 
         # Get AI completion

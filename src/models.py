@@ -17,6 +17,7 @@ class SourceType(str, Enum):
     TWITTER = "twitter"
     OPENBB = "openbb"
     OSSINSIGHT = "ossinsight"
+    ATA = "ata"
 
 
 class ContentItem(BaseModel):
@@ -264,6 +265,25 @@ class OSSInsightConfig(BaseModel):
     max_items: int = 30
 
 
+class ATAConfig(BaseModel):
+    """ATA hot article source configuration."""
+
+    enabled: bool = False
+    base_url: str = "https://ata.atatech.org"
+    hot_path: str = "/api/v1/recommend/dayHotArticle"
+    cookie_source: str = "applescript"
+    chrome_domain: str = "ata.atatech.org"
+    chrome_cookie_file: Optional[str] = None
+    chrome_user_data_dir: str = "~/Library/Application Support/Google/Chrome"
+    chrome_profile_directory: str = "Profile 1"
+    headless: bool = False
+    cookie_env: str = "ATA_COOKIE"
+    xsrf_token_env: str = "ATA_XSRF_TOKEN"
+    fetch_limit: int = 5
+    fetch_detail: bool = True
+    category: Optional[str] = "ata-hot"
+
+
 class SourcesConfig(BaseModel):
     """All sources configuration."""
 
@@ -275,6 +295,7 @@ class SourcesConfig(BaseModel):
     twitter: Optional[TwitterConfig] = None
     openbb: Optional[OpenBBConfig] = None
     ossinsight: OSSInsightConfig = Field(default_factory=OSSInsightConfig)
+    ata: ATAConfig = Field(default_factory=ATAConfig)
 
 
 class WebhookConfig(BaseModel):
@@ -344,6 +365,19 @@ class WebhookConfig(BaseModel):
         return v
 
 
+class DingTalkConfig(BaseModel):
+    """DingTalk internal-app robot notification configuration."""
+
+    app_key_env: str = "DINGTALK_APP_KEY"
+    app_secret_env: str = "DINGTALK_APP_SECRET"
+    robot_code_env: str = "DINGTALK_ROBOT_CODE"
+    open_conversation_id_env: str = "DINGTALK_OPEN_CONVERSATION_ID"
+    msg_key: str = "sampleMarkdown"
+    message_title: str = "Horizon 每日速递"
+    languages: Optional[List[str]] = None
+    enabled: bool = False
+
+
 class EmailConfig(BaseModel):
     """Email configuration for updates/subscriptions."""
 
@@ -389,3 +423,4 @@ class Config(BaseModel):
     filtering: FilteringConfig
     email: Optional[EmailConfig] = None
     webhook: Optional[WebhookConfig] = None
+    dingtalk: Optional[DingTalkConfig] = None

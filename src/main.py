@@ -7,12 +7,14 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from rich.console import Console
+import truststore
 
 from .storage.manager import ConfigError, StorageManager
 from .orchestrator import HorizonOrchestrator
 
 
 console = Console()
+truststore.inject_into_ssl()
 
 
 def print_banner():
@@ -101,8 +103,9 @@ def print_config_template():
   "sources": {
     "github": [
       {
-        "type": "user_events",
-        "username": "torvalds",
+        "type": "repo_releases",
+        "owner": "astral-sh",
+        "repo": "uv",
         "enabled": true
       }
     ],

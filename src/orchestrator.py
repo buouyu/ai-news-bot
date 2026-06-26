@@ -13,6 +13,7 @@ from .models import Config, ContentItem
 from .storage.manager import StorageManager
 from .services.email import EmailManager
 from .services.webhook import WebhookNotifier
+from .services.dingtalk import DingTalkNotifier
 from .scrapers.github import GitHubScraper
 from .scrapers.hackernews import HackerNewsScraper
 from .scrapers.rss import RSSScraper
@@ -22,6 +23,7 @@ from .scrapers.twitter import TwitterScraper
 from .scrapers.twitter_playwright import TwitterPlaywrightScraper
 from .scrapers.openbb import OpenBBScraper
 from .scrapers.ossinsight import OSSInsightScraper
+from .scrapers.ata import ATAScraper
 from .ai.client import create_ai_client
 from .ai.analyzer import ContentAnalyzer
 from .ai.summarizer import DailySummarizer
@@ -57,6 +59,11 @@ class HorizonOrchestrator:
         self.webhook_notifier = (
             WebhookNotifier(config.webhook, console=self.console)
             if config.webhook and config.webhook.enabled
+            else None
+        )
+        self.dingtalk_notifier = (
+            DingTalkNotifier(config.dingtalk, console=self.console)
+            if config.dingtalk and config.dingtalk.enabled
             else None
         )
 
@@ -206,6 +213,10 @@ class HorizonOrchestrator:
                         summarizer=summarizer,
                     )
 
+                # Send DingTalk group overview (TOC) if configured
+                if self.dingtalk_notifier:
+                    await self.dingtalk_notifier.send_summary_overview(summary, lang)
+
             self.console.print("[bold green]✅ Horizon completed successfully![/bold green]")
             usage = get_usage_snapshot()
             if usage.total_tokens > 0:
@@ -300,6 +311,11 @@ class HorizonOrchestrator:
                 oss_scraper = OSSInsightScraper(self.config.sources.ossinsight, client)
                 tasks.append(self._fetch_with_progress("OSS Insight", oss_scraper, since))
 
+            # ATA hot articles
+            if self.config.sources.ata and self.config.sources.ata.enabled:
+                ata_scraper = ATAScraper(self.config.sources.ata, client)
+                tasks.append(self._fetch_with_progress("ATA", ata_scraper, since))
+
             # Fetch all concurrently
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -350,6 +366,8 @@ class HorizonOrchestrator:
             return f"@{meta['channel']}"
         if meta.get("period") and meta.get("repo"):
             return f"ossinsight:{meta.get('primary_language', 'all')}"
+        if meta.get("article_id") and meta.get("source") == "dayHotArticle":
+            return "ata:dayHotArticle"
         if meta.get("repo"):
             return meta["repo"]
         if meta.get("watchlist"):
