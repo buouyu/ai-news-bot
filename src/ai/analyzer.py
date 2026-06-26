@@ -14,6 +14,83 @@ from ..models import ContentItem
 
 DEFAULT_THROTTLE_SEC = 0.0
 
+NON_TECHNICAL_NEWS_PATTERNS = [
+    r"\bdied\b",
+    r"\bobituary\b",
+    r"\bpassed away\b",
+    r"\bmemorial\b",
+    r"\btribute\b",
+    r"\bfunding\b",
+    r"\braised \$",
+    r"\bacquir(?:e|ed|es|ing)\b",
+    r"\bipo\b",
+    r"\bstock\b",
+    r"\bearnings\b",
+    r"\blayoffs?\b",
+    r"\blawsuit\b",
+    r"\bregulation\b",
+    r"\bpolicy\b",
+    r"\bprivacy\b",
+    r"\bmarket\b",
+    r"\bceo\b",
+    r"人物",
+    r"融资",
+    r"收购",
+    r"上市",
+    r"财报",
+    r"裁员",
+    r"诉讼",
+    r"监管",
+    r"政策",
+    r"隐私",
+]
+
+TECHNICAL_SIGNAL_PATTERNS = [
+    r"\balgorithm\b",
+    r"\barchitecture\b",
+    r"\bbenchmark\b",
+    r"\bapi\b",
+    r"\bprotocol\b",
+    r"\bcompiler\b",
+    r"\bruntime\b",
+    r"\brelease\b",
+    r"\bversion\b",
+    r"\bcommit\b",
+    r"\bpatch\b",
+    r"\bcode\b",
+    r"\bopen source\b",
+    r"\bgithub\b",
+    r"\bsecurity\b",
+    r"\bvulnerability\b",
+    r"\bcve\b",
+    r"\bmodel\b",
+    r"\btraining\b",
+    r"\binference\b",
+    r"\bdataset\b",
+    r"\btransformer\b",
+    r"\bllm\b",
+    r"\bcuda\b",
+    r"\bpython\b",
+    r"\brust\b",
+    r"\btypescript\b",
+    r"\bcli\b",
+    r"\bframework\b",
+    r"\bdebugg(?:er|ing)\b",
+    r"性能",
+    r"架构",
+    r"算法",
+    r"模型",
+    r"协议",
+    r"接口",
+    r"开源",
+    r"漏洞",
+    r"基准",
+    r"版本",
+    r"发布",
+    r"工程",
+    r"实现",
+]
+
 
 class ContentAnalyzer:
     """Analyzes content items using AI to determine importance."""
@@ -177,3 +254,34 @@ class ContentAnalyzer:
         item.ai_reason = result.get("reason", "")
         item.ai_summary = result.get("summary", item.title)
         item.ai_tags = result.get("tags", [])
+        self._apply_technical_focus_caps(item)
+
+    def _apply_technical_focus_caps(self, item: ContentItem) -> None:
+        """Keep general informational news out of a technical digest."""
+        if item.ai_score is None:
+            return
+
+        haystack = " ".join(
+            [
+                item.title or "",
+                item.content or "",
+                item.ai_summary or "",
+                " ".join(item.ai_tags or []),
+            ]
+        )
+        if not self._matches_any(haystack, NON_TECHNICAL_NEWS_PATTERNS):
+            return
+        if self._matches_any(haystack, TECHNICAL_SIGNAL_PATTERNS):
+            return
+
+        original_score = item.ai_score
+        item.ai_score = min(item.ai_score, 4.0)
+        note = (
+            f"Technical-focus cap applied: informational/general-news item "
+            f"without concrete technical detail (original score {original_score:g})."
+        )
+        item.ai_reason = f"{item.ai_reason} {note}".strip()
+
+    @staticmethod
+    def _matches_any(text: str, patterns: List[str]) -> bool:
+        return any(re.search(pattern, text, flags=re.IGNORECASE) for pattern in patterns)

@@ -24,6 +24,13 @@ CONTENT_ANALYSIS_SYSTEM = """You are an expert content curator helping filter im
 
 Score content on a 0-10 scale based on importance and relevance:
 
+**Technical focus gate (strict):**
+- Prefer items with concrete technical substance: implementation details, architecture, algorithms, models, benchmarks, APIs, protocols, developer tools, releases, research methods, code, security analysis, systems behavior, or engineering lessons.
+- Purely informational/general-news items should score below the reporting threshold even if they are interesting or widely discussed.
+- Cap non-technical news at 4/10 unless it contains specific technical mechanisms or actionable engineering detail.
+- Cap obituary/people profiles, funding/acquisition/stock/earnings news, policy/legal/privacy commentary, general industry analysis, and product marketing at 3-4/10 when they lack technical depth.
+- AI-adjacent stories still need technical substance. "Uses AI" or "about AI" alone is not enough for a high score.
+
 **9-10: Groundbreaking** - Major breakthroughs, paradigm shifts, or highly significant announcements
 - New major version releases of widely-used technologies
 - Significant research breakthroughs

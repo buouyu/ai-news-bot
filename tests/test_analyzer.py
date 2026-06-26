@@ -94,3 +94,44 @@ def test_analyze_batch_concurrent_preserves_order(monkeypatch):
     result = asyncio.run(analyzer.analyze_batch(items))
 
     assert [item.id for item in result] == [item.id for item in items]
+
+
+def test_technical_focus_caps_general_news_without_technical_signal():
+    analyzer = ContentAnalyzer(SimpleNamespace())
+    item = ContentItem(
+        id="rss:news:1",
+        source_type=SourceType.RSS,
+        title="Famous technology writer died",
+        url="https://example.com/news",
+        content="A widely followed industry commentator passed away.",
+        published_at=datetime(2026, 4, 26, tzinfo=timezone.utc),
+        ai_score=8.0,
+        ai_reason="Widely discussed.",
+        ai_summary="A prominent person in technology media died.",
+        ai_tags=["industry"],
+    )
+
+    analyzer._apply_technical_focus_caps(item)
+
+    assert item.ai_score == 4.0
+    assert "Technical-focus cap applied" in item.ai_reason
+
+
+def test_technical_focus_keeps_news_with_concrete_technical_signal():
+    analyzer = ContentAnalyzer(SimpleNamespace())
+    item = ContentItem(
+        id="rss:technical:1",
+        source_type=SourceType.RSS,
+        title="Privacy vulnerability in browser API",
+        url="https://example.com/technical",
+        content="The report includes protocol details, exploit code, and a patch.",
+        published_at=datetime(2026, 4, 26, tzinfo=timezone.utc),
+        ai_score=8.0,
+        ai_reason="Technical security analysis.",
+        ai_summary="A browser API vulnerability was analyzed.",
+        ai_tags=["security", "api"],
+    )
+
+    analyzer._apply_technical_focus_caps(item)
+
+    assert item.ai_score == 8.0
